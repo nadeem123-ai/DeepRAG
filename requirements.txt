@@ -1,0 +1,27 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Requirements — tested compatible with Python 3.10
+# Install: pip install -r requirements.txt
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Core PDF processing
+pdfplumber>=0.10.0
+
+# Embeddings
+# NOTE: sentence-transformers 3.x requires transformers>=4.41.0 (satisfied below)
+sentence-transformers>=3.0.0
+torch>=2.3.0
+transformers>=4.44.0
+huggingface_hub>=0.24.0
+
+# Vector search
+faiss-cpu>=1.8.0
+
+# LLM (local inference via Ollama)
+ollama>=0.3.0
+
+# Utilities
+# IMPORTANT: torch 2.3.x is built against numpy <2.0 — do NOT upgrade to numpy 2.x
+numpy>=1.26.0,<2.0.0
+
+# Streamlit UI
+streamlit>=1.35.0

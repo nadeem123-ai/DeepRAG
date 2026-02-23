@@ -1,0 +1,50 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Cache files
+*.pkl
+*.cache
+
+# Vector database (auto-generated)
+chroma_db/
+lc_vectorstore.pkl
+embeddings_cache.pkl
+vector_store.pkl
+rag_cache.pkl
+
+# Environment variables (contains API keys)
+.env
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# PDF files (too large for GitHub)
+docs/*.pdf
+images/*.png
+images/*.jpg
+images/*.jpeg
