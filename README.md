@@ -1,18 +1,26 @@
-# 🧠 DeepRAG — Retrieval-Augmented Generation Pipeline
+# 🧠 DeepRAG — RAG Pipeline Built From Scratch
 
-A production-grade RAG pipeline built from scratch. Ask questions about any PDF document using local or cloud LLMs.
+A production-grade Retrieval-Augmented Generation (RAG) pipeline built **entirely from scratch** — no LangChain, no shortcuts. Every component is implemented manually to deeply understand how RAG works under the hood.
+
+---
+
+## 🎯 Why From Scratch?
+
+Most RAG tutorials use frameworks like LangChain which hide the complexity. This project builds every component manually so you understand **exactly** what is happening at each step — before jumping to any framework.
 
 ---
 
 ## 🚀 Features
 
-- 📄 **PDF Loading** — supports text-based and image-based PDFs (OCR fallback)
-- ✂️ **Smart Chunking** — RecursiveCharacterTextSplitter preserves natural boundaries
-- 🔢 **Embeddings** — HuggingFace `all-MiniLM-L6-v2` (384-dim vectors)
-- 🗄️ **Vector Store** — Chroma DB (persistent, no re-embedding on restart)
-- 🧠 **Conversation Memory** — remembers previous questions automatically
-- 🤖 **Dual LLM Support** — Ollama (local/free) or OpenAI (cloud)
-- 📊 **3-Level Evaluation** — manual, automated, and LLM-as-judge scoring
+- 📄 **PDF Extraction** — custom extractor using `pdfplumber`
+- ✂️ **Text Chunking** — fixed character chunker with configurable overlap
+- 🔢 **Embeddings** — manual embedding pipeline using `sentence-transformers`
+- 🗄️ **Vector Search** — FAISS index (flat + IVF) built and managed manually
+- 💬 **Generation** — Ollama + Mistral with custom prompt engineering
+- 📊 **3-Level Evaluation System:**
+  - Level 1: Exact match + keyword match
+  - Level 2: Cosine similarity + ROUGE-1, ROUGE-2, ROUGE-L
+  - Level 3: LLM-as-judge (faithfulness, relevance, completeness)
 
 ---
 
@@ -20,24 +28,25 @@ A production-grade RAG pipeline built from scratch. Ask questions about any PDF 
 
 ```
 DeepRAG/
-├── docs/                    ← put your PDF files here
+├── docs/
+│   └── your_file.pdf          ← put your PDF here
 ├── rag/
 │   ├── __init__.py
-│   ├── loader.py            ← PDF loading + OCR fallback
-│   ├── splitter.py          ← smart text chunking
-│   ├── embedder.py          ← HuggingFace embeddings
-│   ├── vector_store.py      ← Chroma vector database
-│   ├── llm.py               ← Ollama + OpenAI support
-│   └── pipeline.py          ← full chain + conversation memory
+│   ├── pdf_extractor.py       ← extracts text from PDF page by page
+│   ├── chunker.py             ← splits text into overlapping chunks
+│   ├── embedder.py            ← converts chunks to vectors
+│   ├── vector_store.py        ← FAISS index (build, save, search)
+│   ├── generator.py           ← prompt builder + Ollama generation
+│   └── pipeline.py            ← orchestrates all steps with caching
 ├── evaluation/
 │   ├── __init__.py
-│   ├── evaluator.py         ← runs all 3 evaluation levels
-│   ├── metrics.py           ← exact match, ROUGE, cosine, LLM judge
-│   └── test_cases.py        ← ground truth Q&A pairs
-├── main.py                  ← terminal Q&A interface
-├── evaluate.py              ← evaluation entry point
-├── requirements.txt
-└── .env.example
+│   ├── evaluator.py           ← runs all 3 evaluation levels
+│   ├── metrics.py             ← all scoring functions
+│   └── test_cases.py          ← ground truth Q&A pairs
+├── main.py                    ← interactive terminal Q&A
+├── evaluate.py                ← evaluation entry point
+├── app.py                     ← Streamlit web UI
+└── requirements.txt
 ```
 
 ---
@@ -66,16 +75,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Install Ollama (for local LLM)
+### 4. Install Ollama
 Download from: https://ollama.com
 ```bash
 ollama pull mistral
-```
-
-### 5. (Optional) OpenAI setup
-```bash
-cp .env.example .env
-# Add your OPENAI_API_KEY inside .env
 ```
 
 ---
@@ -84,28 +87,56 @@ cp .env.example .env
 
 ### Terminal Q&A
 ```bash
-# Using Ollama (local, free)
+python main.py
 python main.py --pdf docs/your_file.pdf
-
-# Using OpenAI (cloud)
-python main.py --pdf docs/your_file.pdf --provider openai --model gpt-4o-mini
-
-# Skip demo, go straight to interactive mode
-python main.py --pdf docs/your_file.pdf --no-demo
+python main.py --no-demo
 ```
 
-### Interactive Commands
-```
-clear    → reset conversation memory
-history  → show previous Q&A
-exit     → quit
+### Streamlit UI
+```bash
+streamlit run app.py
 ```
 
 ### Run Evaluation
 ```bash
-python evaluate.py --pdf docs/your_file.pdf
-python evaluate.py --pdf docs/your_file.pdf --rebuild-cache
+python evaluate.py
+python evaluate.py --rebuild-cache
 ```
+
+---
+
+## 🔍 How Each Component Works
+
+### 1. PDF Extractor (`pdf_extractor.py`)
+Opens the PDF with `pdfplumber` and extracts text from each page.
+Returns plain text with page markers.
+
+### 2. Chunker (`chunker.py`)
+Splits extracted text into overlapping chunks.
+Overlap ensures context is not lost at chunk boundaries.
+```
+chunk_size = 1000 characters
+overlap    = 150 characters
+```
+
+### 3. Embedder (`embedder.py`)
+Loads `all-MiniLM-L6-v2` from HuggingFace.
+Converts each chunk into a 384-dimensional vector.
+Also encodes queries for similarity search.
+
+### 4. Vector Store (`vector_store.py`)
+Builds a FAISS index from all chunk embeddings.
+Supports both flat (exact) and IVF (approximate) search.
+Saves and loads from pickle cache.
+
+### 5. Generator (`generator.py`)
+Builds a RAG prompt with retrieved chunks as context.
+Sends to Mistral via Ollama for local inference.
+Supports streaming output.
+
+### 6. Pipeline (`pipeline.py`)
+Orchestrates all steps.
+Caches embeddings so they only build once.
 
 ---
 
@@ -117,11 +148,15 @@ python evaluate.py --pdf docs/your_file.pdf --rebuild-cache
 | Level 2 | Automated | Cosine similarity, ROUGE-1, ROUGE-2, ROUGE-L |
 | Level 3 | LLM Judge | Faithfulness, Relevance, Completeness |
 
+**Results:**
+- Initial score: **59.8%** (chunk_size=500)
+- After optimization: **68.6%** (chunk_size=1000, top_k=5)
+
 **Score interpretation:**
-- 🟢 85%+ — Excellent
-- 🟡 70%+ — Good
-- 🟠 50%+ — Fair
-- 🔴 <50% — Needs improvement
+- 🟢 85%+ Excellent
+- 🟡 70%+ Good
+- 🟠 50%+ Fair
+- 🔴 <50% Needs improvement
 
 ---
 
@@ -129,50 +164,25 @@ python evaluate.py --pdf docs/your_file.pdf --rebuild-cache
 
 | Component | Technology |
 |-----------|-----------|
-| Framework | LangChain 1.2.x |
-| Embeddings | HuggingFace sentence-transformers |
-| Vector DB | Chroma DB |
+| PDF Extraction | pdfplumber |
+| Embeddings | sentence-transformers (all-MiniLM-L6-v2) |
+| Vector Search | FAISS (faiss-cpu) |
 | Local LLM | Ollama + Mistral |
-| Cloud LLM | OpenAI GPT-4o |
-| PDF (text) | pdfplumber |
-| PDF (image) | pymupdf + pytesseract |
-| Memory | ConversationBufferMemory |
-| Chain | ConversationalRetrievalChain |
+| Evaluation | Custom metrics + LLM judge |
+| UI | Streamlit |
+| Language | Python 3.10 |
 
 ---
 
-## 🧠 How It Works
+## 📈 Key Learnings
 
-```
-User Question
-      ↓
-ConversationalRetrievalChain
-      ↓
-  [Memory] adds chat history
-      ↓
-  [Retriever] finds top-k chunks from Chroma
-      ↓
-  [LLM] generates answer from chunks + question
-      ↓
-  [Memory] saves Q&A for next turn
-      ↓
-Answer
-```
+**Chunk size matters** — 500 chars gave 59.8%, 1000 chars gave 68.6%
 
----
+**Overlap is important** — without overlap, context is lost at boundaries
 
-## 📈 Learning Journey
+**Evaluation is hard** — exact match alone is not enough. You need semantic similarity + LLM judge for real quality measurement
 
-This project was built in two phases:
-
-**Phase 1 — From Scratch**
-Built every component manually: custom PDF extractor, fixed chunker, FAISS vector index, manual prompt engineering, and a 3-level evaluation system. Initial score: **59.8%**
-
-**Phase 2 — With LangChain**
-Rebuilt using LangChain abstractions. Added conversation memory, smarter chunking, persistent Chroma DB. Score improved to: **68.6%**
-
-Key lesson: **Build from scratch first. Then use frameworks.**
-You'll understand every abstraction because you've already implemented it manually.
+**Build from scratch first** — understanding every component manually makes frameworks much easier to use later
 
 ---
 
@@ -185,6 +195,6 @@ MIT License — free to use, modify, and distribute.
 ## 🙋 Author
 
 **Muhammad Nadeem**
-AI/ML Engineer · LangChain · RAG · Generative AI
+AI / ML Engineer · RAG · Generative AI · LLM Systems
 
 ⭐ If you found this useful, please give it a star!
